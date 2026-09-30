@@ -1,0 +1,20 @@
+{
+  "name": "FOG 中国赛区 · 选手转会协议",
+  "short_name": "FOG 转会协议",
+  "description": "FOG 中国赛区联盟选手转会协议电子签署页（黑金 · 手写签名自动盖章）",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "categories": ["sports", "productivity", "utilities"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

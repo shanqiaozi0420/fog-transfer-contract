@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>FOG 中国赛区联盟 · 选手转会协议</title>
+<!-- ============ PWA：Android（Chrome 安装） ============ -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<meta name="theme-color" content="#000000">
+<!-- ============ PWA：iOS / Safari（添加到主屏幕） ============ -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FOG 转会协议">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+/* ============================================================
+   FOG 选手转会协议 · 电子签署
+   纯黑底 / 克制的黑金 / 左侧合同固定 / 右侧信息滚动
+   选手手写签名 → 自动加盖联盟备案章
+   零依赖 · 零外部请求 · 离线可用
+   ============================================================ */
+
+:root{
+  /* 底色：纯黑 */
+  --bg:#000;
+  --card-1:#0C0C0E;
+  --card-2:#08080A;
+  --card-3:#050506;
+
+  /* 金：偏香槟／古金，五档 */
+  --g1:#6E5522;
+  --g2:#A8863F;
+  --g3:#C9A961;
+  --g4:#E3D2A2;
+  --g5:#F6EED8;
+
+  /* 文字 */
+  --t1:#E9E7E2;
+  --t2:#9C9A95;
+  --t3:#615F5B;
+  --t4:#3D3C39;
+
+  --line:rgba(255,255,255,.075);
+  --line-2:rgba(255,255,255,.045);
+  --hair:rgba(201,169,97,.26);
+
+  --red:#B33A31;
+
+  --serif:"Source Han Serif SC","Noto Serif SC","Songti SC",STSong,SimSun,"Times New Roman",serif;
+  --mono:"JetBrains Mono","SF Mono",ui-monospace,Consolas,"Courier New",monospace;
+  --sans:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  background:var(--bg);color:var(--t1);
+  font-family:var(--sans);font-size:14px;line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+  height:100vh;overflow:hidden;
+}
+
+/* 烫金（静态箔面，不做动画、不发光） */
+.foil{
+  background:linear-gradient(96deg,#7A5F28 0%,#C9A961 17%,#F6EED8 33%,#D8BE7C 45%,
+             #8A6B2F 60%,#C9A961 78%,#6E5522 100%);
+  -webkit-background-clip:text;background-clip:text;
+  color:transparent;-webkit-text-fill-color:transparent;
+}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+
+/* ---------------- 顶栏 ---------------- */
+.bar{
+  height:54px;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:0 clamp(16px,2.4vw,32px);
+  border-bottom:1px solid var(--line);
+  background:#000;
+}
+.bar__l{display:flex;align-items:center;gap:13px;min-width:0;}
+.bar__mark{
+  width:28px;height:28px;flex:0 0 auto;display:grid;place-items:center;border-radius:5px;
+  border:1px solid var(--hair);
+  font-family:var(--serif);font-size:11px;letter-spacing:.02em;
+}
+.bar__t{min-width:0;}
+.bar__t b{display:block;font-family:var(--serif);font-size:13.5px;font-weight:600;letter-spacing:.2em;color:#DAD7D0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar__t span{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.26em;color:var(--t4);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+.status{
+  display:inline-flex;align-items:center;gap:9px;flex:0 0 auto;
+  padding:6px 14px;border-radius:3px;
+  border:1px solid var(--line);
+  font-size:11.5px;letter-spacing:.2em;color:var(--t2);
+  transition:border-color .4s,color .4s;
+}
+.status i{width:5px;height:5px;border-radius:50%;background:var(--t4);transition:background .4s,box-shadow .4s;}
+.status.is-sign{border-color:var(--hair);color:var(--g4);}
+.status.is-sign i{background:var(--g3);}
+.status.is-sealed{border-color:rgba(179,58,49,.55);color:#E4B0AA;}
+.status.is-sealed i{background:var(--red);}
+
+/* ---------------- 布局：左固定 / 右滚动 ---------------- */
+.layout{
+  display:grid;grid-template-columns:minmax(400px,46%) 1fr;
+  height:calc(100vh - 54px);
+  height:calc(100dvh - 54px);          /* 移动端：跟随地址栏收放，避免被裁 */
+}
+.doc-col{
+  display:grid;place-items:center;overflow:hidden;
+  padding:clamp(18px,3.4vh,42px) clamp(18px,2.8vw,44px);
+}
+.panel-col{
+  overflow-y:auto;overscroll-behavior:contain;
+  border-left:1px solid var(--line);
+  padding:clamp(22px,3.4vh,38px) clamp(20px,2.6vw,40px) 56px;
+}
+.panel-col::-webkit-scrollbar{width:8px;}
+.panel-col::-webkit-scrollbar-track{background:#000;}
+.panel-col::-webkit-scrollbar-thumb{background:rgba(255,255,255,.09);border-radius:4px;}
+.panel-col::-webkit-scrollbar-thumb:hover{background:rgba(201,169,97,.3);}
+
+/* ============================================================
+   合同卡（黑金，克制的金属边）
+   ============================================================ */
+.card-wrap{width:min(100%,440px);perspective:1500px;outline:none;}
+.card{
+  position:relative;border-radius:10px;padding:1px;      /* 1px 金属边 */
+  background:linear-gradient(158deg,
+    rgba(201,169,97,.62) 0%,rgba(201,169,97,.13) 22%,
+    rgba(255,255,255,.055) 48%,rgba(201,169,97,.12) 74%,rgba(201,169,97,.44) 100%);
+  transform-style:preserve-3d;
+  transform:rotateX(0deg) rotateY(0deg) scale(1);
+  will-change:transform;
+}
+.card__in{
+  position:relative;border-radius:9px;overflow:hidden;
+  background:linear-gradient(180deg,var(--card-1) 0%,var(--card-2) 52%,var(--card-3) 100%);
+  padding:clamp(24px,3.4vh,34px) clamp(22px,2.4vw,32px) clamp(20px,2.8vh,28px);
+  min-height:min(566px,calc(100vh - 168px));
+  display:flex;flex-direction:column;justify-content:space-between;gap:16px;
+  user-select:none;-webkit-user-select:none;
+}
+/* 卡面柔光：跟随指针的一层极淡反射 */
+.card__sheen{
+  position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 46% 34% at var(--mx,50%) var(--my,50%),
+    rgba(255,246,224,calc(.055 * var(--shine,0))) 0%,
+    rgba(230,206,150,calc(.022 * var(--shine,0))) 42%,
+    transparent 76%);
+  mix-blend-mode:screen;
+}
+.card__edgehl{
+  position:absolute;inset:0;pointer-events:none;border-radius:9px;
+  background:linear-gradient(180deg,rgba(255,255,255,.05),transparent 14%);
+}
+
+/* 卡头 */
+.c-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  padding-bottom:13px;border-bottom:1px solid var(--hair);}
+.c-head__l{font-family:var(--serif);font-size:11.5px;letter-spacing:.26em;color:#C4C1BA;}
+.c-head__r{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--g3);white-space:nowrap;}
+
+/* 标题 */
+.c-title{text-align:center;padding:clamp(16px,2.6vh,26px) 0 clamp(14px,2.2vh,22px);}
+.c-title h1{
+  margin:0;font-family:var(--serif);font-weight:600;
+  font-size:clamp(23px,3.1vh,30px);letter-spacing:.34em;text-indent:.34em;line-height:1.3;
+}
+.c-title p{
+  margin:9px 0 0;font-family:var(--mono);font-size:8.5px;letter-spacing:.34em;
+  color:var(--t4);text-indent:.34em;
+}
+.c-title::after{
+  content:"";display:block;width:34px;height:1px;margin:16px auto 0;
+  background:linear-gradient(90deg,transparent,var(--g3),transparent);
+}
+
+/* 主体信息行 */
+.c-info{display:grid;gap:0;}
+.c-row{display:flex;align-items:baseline;gap:10px;padding:6.5px 0;border-bottom:1px solid var(--line-2);}
+.c-row:last-child{border-bottom:0;}
+.c-row dt{
+  flex:0 0 74px;margin:0;font-size:10.5px;letter-spacing:.24em;color:var(--t4);
+}
+.c-row dd{
+  margin:0;font-size:12.5px;letter-spacing:.04em;color:#D6D3CC;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.c-row--key dd{font-family:var(--mono);font-size:12px;}
+
+/* 签署栏 */
+.c-sign{padding-top:14px;border-top:1px solid var(--hair);position:relative;}
+.c-sign__k{font-size:9.5px;letter-spacing:.3em;color:var(--t4);margin-bottom:clamp(12px,2.4vh,20px);}
+.c-sign__grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(14px,2.4vh,22px) 22px;}
+.slot{position:relative;min-width:0;}
+.slot__lb{font-size:10px;letter-spacing:.2em;color:var(--t3);}
+.slot__ln{height:1px;margin-top:clamp(26px,4.4vh,38px);background:rgba(255,255,255,.16);}
+.slot__who{margin-top:5px;font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--t4);}
+.slot__ink{
+  position:absolute;left:0;right:0;bottom:19px;height:34px;   /* 底边正好压在签名线上 */
+  display:flex;align-items:flex-end;
+}
+.slot__ink img{height:100%;width:auto;max-width:100%;object-fit:contain;object-position:left bottom;}
+/* 内嵌的静态签名：父级 .sig 是自动高度，height:100% 解析不了，必须给像素高度 */
+.slot__ink .sig__img{height:27px;width:auto;max-width:100%;}
+/* 只有「选手本人」那张是需要签名后才淡入的；内嵌的静态签名始终可见 */
+.slot__ink img#sigImg{opacity:0;transition:opacity .5s;}
+.slot__ink img#sigImg.is-on{opacity:1;}
+
+/* 已签署方的手写签名：内嵌 PNG（不依赖任何系统字体）+ 手绘收笔 */
+.sig{
+  display:inline-flex;flex-direction:column;align-items:flex-start;
+  color:#EAE3D2;line-height:1;
+  transform:rotate(var(--r,0deg));transform-origin:left bottom;
+}
+.sig__img{
+  display:block;height:27px;width:auto;max-width:100%;
+  image-rendering:-webkit-optimize-contrast;
+}
+.sig__f{display:block;width:52px;height:8px;margin-top:-2px;opacity:.78;}
+.sig__f--b{width:44px;}
+.slot--seal .slot__ln{margin-top:clamp(20px,3.4vh,30px);}
+.c-date{
+  margin-top:clamp(14px,2.6vh,22px);padding-top:12px;border-top:1px solid var(--line-2);
+  display:flex;align-items:baseline;gap:10px;
+}
+.c-date dt{margin:0;font-size:10px;letter-spacing:.24em;color:var(--t4);}
+.c-date dd{margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--t2);}
+
+/* 印章 */
+.seal-slot{
+  position:absolute;right:-2px;bottom:-8px;width:clamp(96px,11.5vh,120px);aspect-ratio:1;
+  pointer-events:none;transform:translate3d(0,0,34px);
+}
+.seal{width:100%;height:100%;display:block;opacity:0;}
+.seal.is-on{animation:sealDrop 1.35s cubic-bezier(.2,.75,.25,1) both;}
+@keyframes sealDrop{
+  0%{opacity:0;transform:scale(1.9) rotate(-8deg);filter:blur(2px);}
+  8%{opacity:.92;transform:scale(1.32) rotate(-3.5deg);filter:blur(0);}
+  14%{opacity:1;transform:scale(.96) rotate(-1deg);}
+  20%{transform:scale(1.03) rotate(.5deg);}
+  27%{transform:scale(.995) rotate(0deg);}
+  36%,100%{opacity:1;transform:scale(1) rotate(0deg);}
+}
+.seal__paint{transform-origin:120px 120px;}
+.seal.is-on .seal__paint{animation:inkSpread .6s cubic-bezier(.16,.72,.24,1) .1s both;}
+@keyframes inkSpread{0%{transform:scale(.02)}74%{transform:scale(1.03)}100%{transform:scale(1)}}
+.seal__ring{stroke-dasharray:490;stroke-dashoffset:490;}
+.seal.is-on .seal__ring{animation:draw .75s cubic-bezier(.4,.1,.2,1) .24s forwards;}
+@keyframes draw{to{stroke-dashoffset:0}}
+.seal__core{transform-origin:120px 86px;transform:scale(.3);opacity:0;}
+.seal.is-on .seal__core{animation:core .45s cubic-bezier(.2,1.5,.4,1) .38s forwards;}
+@keyframes core{to{transform:scale(1);opacity:1}}
+.seal__txt{opacity:0;}
+.seal.is-on .seal__txt{animation:fadeIn .45s ease-out .46s forwards;}
+@keyframes fadeIn{to{opacity:1}}
+.seal.is-final{animation:none;opacity:1;transform:none;}
+.seal.is-final .seal__paint{animation:none;transform:scale(1);}
+.seal.is-final .seal__ring{animation:none;stroke-dashoffset:0;}
+.seal.is-final .seal__core{animation:none;transform:scale(1);opacity:1;}
+.seal.is-final .seal__txt{animation:none;opacity:1;}
+
+/* ============================================================
+   右侧信息栏
+   ============================================================ */
+.sec{margin-bottom:34px;}
+.sec:last-child{margin-bottom:0;}
+.sec__hd{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;
+  padding-bottom:9px;border-bottom:1px solid var(--line);}
+.sec__hd h2{margin:0;font-family:var(--serif);font-size:12.5px;font-weight:600;
+  letter-spacing:.28em;color:#D3D0C9;white-space:nowrap;}
+.sec__hd em{margin-left:auto;font-family:var(--mono);font-size:8.5px;letter-spacing:.22em;
+  color:var(--t4);font-style:normal;white-space:nowrap;}
+
+.rows{display:grid;}
+.row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+  padding:9px 0;border-bottom:1px solid var(--line-2);}
+.row:last-child{border-bottom:0;}
+.row dt{margin:0;font-size:11.5px;letter-spacing:.1em;color:var(--t2);}
+.row dd{margin:0;font-family:var(--mono);font-size:11.5px;color:#D6D3CC;text-align:right;}
+
+.party{display:flex;gap:14px;padding:11px 0;border-bottom:1px solid var(--line-2);}
+.party:last-child{border-bottom:0;}
+.party__r{flex:0 0 60px;font-size:10.5px;letter-spacing:.2em;color:var(--g2);padding-top:2px;}
+.party__b b{display:block;font-family:var(--serif);font-size:13px;font-weight:600;
+  letter-spacing:.05em;color:#DFDCD5;}
+.party__b span{display:block;font-size:10.5px;color:var(--t3);margin-top:2px;}
+
+.pay{display:grid;gap:1px;background:var(--line-2);border:1px solid var(--line-2);border-radius:6px;overflow:hidden;}
+.pay__c{padding:13px 15px;background:#07070880;}
+.pay__k{font-size:10px;letter-spacing:.2em;color:var(--t3);}
+.pay__v{margin-top:3px;font-family:var(--mono);font-size:17px;letter-spacing:.02em;color:#DDDAD3;}
+.pay__v u{font-size:10.5px;text-decoration:none;color:var(--t3);margin-left:5px;letter-spacing:.1em;}
+.pay__n{margin-top:3px;font-size:10.5px;color:var(--t4);}
+
+/* 条款 */
+.cl{display:grid;border-top:1px solid var(--line);}
+.cli{
+  appearance:none;width:100%;text-align:left;cursor:pointer;background:none;border:0;
+  border-bottom:1px solid var(--line-2);
+  display:flex;align-items:center;gap:14px;padding:12px 2px;
+  color:var(--t2);font-family:var(--sans);font-size:12.5px;letter-spacing:.08em;
+  transition:color .25s,padding .25s;
+}
+.cli__no{flex:0 0 auto;font-family:var(--serif);font-size:12px;color:var(--g2);transition:color .25s;}
+.cli__nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cli__en{flex:0 0 auto;font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;color:var(--t4);
+  transition:color .25s;}
+.cli:hover{color:#CFCCC5;}
+.cli:hover .cli__no{color:var(--g4);}
+.cli.is-on{color:#EFEDE7;}
+.cli.is-on .cli__no{color:var(--g4);}
+.cli.is-on .cli__en{color:var(--g2);}
+.cli:focus-visible{outline:1px solid var(--hair);outline-offset:-2px;}
+
+.cld{border-bottom:1px solid var(--line);padding:16px 2px 20px;}
+.cld[hidden]{display:none;}
+.cld__t{margin:0 0 3px;font-family:var(--serif);font-size:14px;letter-spacing:.12em;color:#E2DFD8;}
+.cld__en{margin:0 0 13px;font-family:var(--mono);font-size:8.5px;letter-spacing:.24em;color:var(--t4);}
+.cld__s{margin:0 0 15px;font-size:12.5px;line-height:1.95;color:#B7B4AE;text-align:justify;}
+.cld__k{margin:0 0 9px;font-size:9.5px;letter-spacing:.26em;color:var(--t4);}
+.cld ul{margin:0;padding:0;list-style:none;display:grid;gap:7px;}
+.cld li{position:relative;padding-left:14px;font-size:12px;line-height:1.8;color:#A8A5A0;}
+.cld li::before{content:"";position:absolute;left:0;top:.75em;width:5px;height:1px;background:var(--g2);}
+
+/* 流程 */
+.flow{position:relative;padding-left:18px;}
+.flow::before{content:"";position:absolute;left:4px;top:8px;bottom:8px;width:1px;background:var(--line);}
+.fl{position:relative;padding:5px 0;}
+.fl::before{content:"";position:absolute;left:-18px;top:12px;width:5px;height:5px;border-radius:50%;
+  background:#000;border:1px solid var(--t4);transition:border-color .5s,background .5s;}
+.fl b{display:block;font-weight:400;font-size:12px;letter-spacing:.06em;color:var(--t3);transition:color .5s;}
+.fl span{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--t4);}
+.flow.is-done .fl::before{border-color:var(--g3);background:var(--g3);}
+.flow.is-done .fl b{color:#CFCCC5;}
+
+/* ============================================================
+   签署区
+   ============================================================ */
+.signbox{border:1px solid var(--line);border-radius:8px;padding:18px;background:#050506;}
+.signbox.is-done{border-color:var(--hair);}
+.signbox__k{font-size:10px;letter-spacing:.26em;color:var(--t3);margin-bottom:4px;}
+.signbox__n{margin:0 0 14px;font-size:11.5px;line-height:1.8;color:var(--t3);}
+.pad{
+  position:relative;height:150px;border:1px dashed rgba(255,255,255,.13);border-radius:6px;
+  background:#000;overflow:hidden;touch-action:none;cursor:crosshair;
+  transition:border-color .3s;
+}
+.pad:hover{border-color:rgba(201,169,97,.36);}
+.pad.is-signed{border-style:solid;border-color:var(--hair);cursor:default;}
+.pad canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+.pad__ph{
+  position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;
+  font-family:var(--serif);font-size:15px;letter-spacing:.3em;color:#2A2927;
+  transition:opacity .3s;
+}
+.pad.has-ink .pad__ph{opacity:0;visibility:hidden;}
+.pad__ln{position:absolute;left:24px;right:24px;bottom:34px;height:1px;background:rgba(255,255,255,.07);pointer-events:none;}
+.pad__x{
+  position:absolute;right:8px;top:8px;z-index:2;appearance:none;cursor:pointer;
+  border:1px solid var(--line);background:#000a;border-radius:4px;color:var(--t3);
+  font-family:var(--sans);font-size:10.5px;letter-spacing:.16em;padding:4px 9px;
+  transition:color .25s,border-color .25s;
+}
+.pad__x:hover{color:var(--g4);border-color:var(--hair);}
+.agree{display:flex;align-items:flex-start;gap:10px;margin:14px 0 0;cursor:pointer;user-select:none;}
+.agree input{
+  appearance:none;flex:0 0 auto;width:15px;height:15px;margin:3px 0 0;cursor:pointer;
+  border:1px solid rgba(255,255,255,.2);border-radius:3px;background:#000;
+  position:relative;transition:border-color .2s;
+}
+.agree input:checked{border-color:var(--g3);background:var(--g3);}
+.agree input:checked::after{
+  content:"";position:absolute;left:4.4px;top:1.4px;width:4px;height:8px;
+  border:solid #0A0A0C;border-width:0 1.5px 1.5px 0;transform:rotate(43deg);
+}
+.agree span{font-size:11.5px;line-height:1.75;color:var(--t2);}
+.agree input:focus-visible{outline:1px solid var(--hair);outline-offset:2px;}
+
+.btn{
+  position:relative;overflow:hidden;appearance:none;cursor:pointer;width:100%;
+  margin-top:16px;padding:13px 20px;border-radius:6px;
+  border:1px solid var(--hair);background:transparent;color:var(--g4);
+  font-family:var(--sans);font-size:12px;letter-spacing:.28em;
+  transition:background .3s,color .3s,border-color .3s,opacity .3s;
+}
+.btn:hover:not(:disabled){background:rgba(201,169,97,.09);border-color:var(--g3);color:var(--g5);}
+.btn:disabled{opacity:.32;cursor:not-allowed;border-color:var(--line);color:var(--t4);}
+.btn:focus-visible{outline:1px solid var(--g3);outline-offset:2px;}
+.btn--ghost{margin-top:10px;border-color:var(--line);color:var(--t3);letter-spacing:.2em;font-size:11px;}
+.btn--ghost:hover:not(:disabled){background:none;border-color:rgba(255,255,255,.2);color:var(--t2);}
+
+.done-note{
+  display:none;align-items:center;gap:10px;margin-top:14px;padding-top:14px;
+  border-top:1px solid var(--line-2);
+  font-size:11px;letter-spacing:.1em;color:var(--t2);
+}
+.done-note.is-on{display:flex;}
+.done-note i{width:6px;height:6px;border-radius:50%;background:var(--red);flex:0 0 auto;}
+.done-note time{font-family:var(--mono);font-size:10.5px;color:var(--t3);margin-left:auto;}
+
+.foot{padding-top:22px;margin-top:8px;border-top:1px solid var(--line-2);}
+.foot p{margin:0;font-size:10.5px;line-height:1.9;color:var(--t4);}
+
+/* ---------------- 响应式 ---------------- */
+@media (max-width:1000px){
+  body{height:auto;overflow:auto;}
+  .layout{display:block;height:auto;}
+  .doc-col{padding:24px 18px;overflow:visible;}
+  .card-wrap{width:min(100%,440px);margin:0 auto;}
+  .card__in{min-height:0;}
+  .panel-col{border-left:0;border-top:1px solid var(--line);overflow:visible;padding:28px 18px 48px;}
+  .bar__t span{display:none;}
+}
+@media (max-width:420px){
+  .c-row dt{flex-basis:62px;font-size:10px;letter-spacing:.16em;}
+  .c-row dd{font-size:11.5px;}
+  .c-sign__grid{gap:14px 14px;}
+  .seal-slot{width:96px;right:-4px;}
+}
+@media (max-height:640px) and (min-width:1001px){
+  .card__in{padding:20px 22px 18px;min-height:0;}
+  .c-title{padding:12px 0;}
+  .c-sign__k{margin-bottom:12px;}
+  .slot__ln{margin-top:18px;}
+}
+
+/* ============================================================
+   移动端横屏（手机横握：宽而矮，例如 844×390 / 915×412 / 667×375）
+   保留左右双栏，把合同压成一张能一屏放下的卡片
+   ============================================================ */
+@media (orientation:landscape) and (max-height:620px){
+  html,body{height:100%;overflow:hidden;}
+  body{height:100dvh;}
+
+  /* 顶栏压到 38px，并避开刘海 */
+  .bar{
+    height:38px;gap:10px;
+    padding-left:max(10px,env(safe-area-inset-left));
+    padding-right:max(10px,env(safe-area-inset-right));
+  }
+  .bar__mark{width:23px;height:23px;border-radius:4px;font-size:9px;}
+  .bar__l{gap:9px;}
+  .bar__t b{font-size:11.5px;letter-spacing:.16em;}
+  .bar__t span{display:none;}
+  .status{padding:4px 10px;font-size:10px;letter-spacing:.14em;gap:6px;}
+
+  .layout{
+    display:grid;                     /* 覆盖 ≤1000px 的单栏 */
+    grid-template-columns:minmax(0,46%) minmax(0,1fr);
+    height:calc(100vh - 38px);
+    height:calc(100dvh - 38px);
+  }
+
+  /* ---- 左：合同，压扁 ---- */
+  .doc-col{
+    padding:8px 6px 8px max(8px,env(safe-area-inset-left));
+    overflow:hidden;
+  }
+  .card-wrap{width:min(100%,340px);perspective:900px;margin:0;}
+  .card__in{
+    padding:13px 15px 11px;min-height:0;gap:0;
+    justify-content:flex-start;
+  }
+
+  .c-head{padding-bottom:6px;}
+  .c-head__l{font-size:9.5px;letter-spacing:.2em;}
+  .c-head__r{font-size:8px;letter-spacing:.06em;}
+
+  .c-title{padding:8px 0 7px;}
+  .c-title h1{font-size:19px;letter-spacing:.24em;text-indent:.24em;}
+  .c-title p{font-size:6.5px;letter-spacing:.22em;margin-top:4px;}
+  .c-title::after{margin-top:7px;width:24px;}
+
+  .c-row{padding:2px 0;}
+  .c-row dt{flex-basis:56px;font-size:9px;letter-spacing:.14em;}
+  .c-row dd{font-size:10.5px;}
+  .c-info{margin:8px 0;}
+
+  .c-sign{padding-top:6px;}
+  .c-sign__k{font-size:8px;letter-spacing:.22em;margin-bottom:5px;}
+  /* 2×2 太占高度 → 横屏压成一行四格，省下整整一行 */
+  .c-sign__grid{grid-template-columns:repeat(4,1fr);gap:6px 9px;}
+  .slot__lb{font-size:8px;letter-spacing:.1em;}
+  .slot__ln{margin-top:24px;}                 /* 要给签名墨迹留出高度，否则会压到标签 */
+  .slot--seal .slot__ln{margin-top:24px;}     /* 消掉基础规则里给监管栏加大的行距，保证四格对齐 */
+  /* 署名小字横屏下会被截断，且信息在右侧「缔约主体」里已有；保留给读屏 */
+  .slot__who{
+    position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+    overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
+  }
+  .slot__ink{bottom:0;height:24px;}           /* 底边正好压在签名线上 */
+  .slot__ink .sig__img{height:19px;}          /* 扣掉收笔的高度，整体正好落在 24px 的墨带里 */
+  .sig__f{width:26px;height:5px;margin-top:0;}
+  .sig__f--b{width:22px;}
+
+  .c-date{margin:6px 0 4px;padding-top:5px;gap:8px;}
+  .c-date dt{font-size:8.5px;letter-spacing:.16em;}
+  .c-date dd{font-size:9.5px;}
+
+  .seal-slot{width:min(80px,26%);right:0;bottom:-12px;}
+  .seal__ticks{animation:none;}       /* 小尺寸下刻度环旋转无意义，省电 */
+
+  /* ---- 右：信息栏，独立滚动 ---- */
+  .panel-col{
+    border-left:1px solid var(--line);border-top:0;
+    overflow-y:auto;overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    padding:12px max(12px,env(safe-area-inset-right)) 32px 14px;
+  }
+  .sec{margin-bottom:18px;}
+  .sec__hd{margin-bottom:9px;padding-bottom:6px;}
+  .sec__hd h2{font-size:11.5px;letter-spacing:.2em;}
+  .sec__hd em{font-size:8px;}
+
+  .row{padding:6px 0;}
+  .row dt,.row dd{font-size:10.5px;}
+
+  .party{padding:7px 0;gap:10px;}
+  .party__r{flex-basis:46px;font-size:9.5px;letter-spacing:.14em;}
+  .party__b b{font-size:11.5px;}
+  .party__b span{font-size:9.5px;}
+
+  .pay__c{padding:9px 11px;}
+  .pay__k{font-size:9px;letter-spacing:.14em;}
+  .pay__v{font-size:14px;}
+  .pay__n{font-size:9.5px;}
+
+  .cli{padding:8px 2px;font-size:11px;gap:10px;}
+  .cli__en{max-width:34%;font-size:8px;}
+  .cld{padding:11px 2px 14px;}
+  .cld__t{font-size:12.5px;}
+  .cld__s{font-size:11.5px;line-height:1.8;margin-bottom:12px;}
+  .cld li{font-size:11px;line-height:1.7;}
+
+  .fl{padding:3px 0;}
+  .fl b{font-size:11px;}
+  .fl span{font-size:8px;}
+
+  .signbox{padding:12px;}
+  .signbox__n{margin-bottom:10px;font-size:10.5px;}
+  .pad{height:92px;}                  /* 矮屏下签名板不必太高 */
+  .agree{margin-top:10px;}
+  .agree span{font-size:10.5px;}
+  .btn{margin-top:12px;padding:11px 16px;font-size:11.5px;letter-spacing:.2em;}
+
+  .foot{padding-top:14px;}
+  .foot p{font-size:9.5px;line-height:1.7;}
+}
+
+/* 极矮横屏（例如 640×320 / 568×320）：再收一档 */
+@media (orientation:landscape) and (max-height:400px){
+  .c-title h1{font-size:17px;}
+  .c-row{padding:2px 0;}
+  .c-row dd{font-size:10px;}
+  .slot__ln{margin-top:13px;}
+  .c-title{padding:6px 0 5px;}
+  .c-sign{padding-top:6px;}
+  .c-date{margin-top:6px;padding-top:6px;}
+  .seal-slot{width:min(74px,28%);}
+  .pad{height:78px;}
+}
+
+/* ---------------- 降低动态 ---------------- */
+@media (prefers-reduced-motion:reduce){
+  .card{transform:none !important;}
+  .card__sheen{display:none;}
+  .seal{opacity:0;transform:none;}
+  .seal.is-on{animation:fadeIn .4s ease-out both;transform:none;}
+  .seal.is-on .seal__paint{animation:none;transform:none;}
+  .seal.is-on .seal__ring{animation:none;stroke-dashoffset:0;}
+  .seal.is-on .seal__core{animation:none;transform:none;opacity:1;}
+  .seal.is-on .seal__txt{animation:none;opacity:1;}
+  .slot__ink img{transition:none;}
+}
+
+/* ---------------- 打印 ---------------- */
+@media print{
+  body{height:auto;overflow:visible;background:#fff;color:#111;}
+  .bar,.panel-col{display:none !important;}
+  .layout{display:block;height:auto;}
+  .doc-col{display:block;padding:0;overflow:visible;}
+  .card{background:#c9a227;padding:0;transform:none !important;}
+  .card__in{background:#fff;min-height:0;}
+  .card__sheen,.card__edgehl{display:none;}
+  .foil{color:#8A6B2F !important;-webkit-text-fill-color:#8A6B2F !important;background:none !important;}
+  .c-head__l,.c-row dd,.party__b b{color:#111;}
+  .seal{opacity:1 !important;animation:none !important;}
+  .seal.is-on,.seal .seal__paint,.seal .seal__ring,.seal .seal__core,.seal .seal__txt{animation:none !important;}
+  .seal .seal__ring{stroke-dashoffset:0;}
+  .seal .seal__core,.seal .seal__txt{opacity:1;transform:none;}
+  .slot__ink img{opacity:1 !important;}
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="bar__l">
+    <div class="bar__mark foil" aria-hidden="true">FOG</div>
+    <div class="bar__t">
+      <b>中国赛区联盟 · 转会备案中心</b>
+      <span>PLAYER TRANSFER REGISTRATION CENTER</span>
+    </div>
+  </div>
+  <div class="status" id="status" role="status" aria-live="polite">
+    <i aria-hidden="true"></i><span id="statusTxt">待签署</span>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ==================== 左：合同（固定不滚动） ==================== -->
+  <section class="doc-col">
+    <div class="card-wrap" id="cardWrap">
+      <article class="card" id="card" tabindex="0" role="group"
+               aria-label="选手转会协议：可用方向键微调卡片角度，Esc 回正">
+        <div class="card__in">
+          <span class="card__sheen" aria-hidden="true"></span>
+          <span class="card__edgehl" aria-hidden="true"></span>
+
+          <div class="c-head">
+            <span class="c-head__l">FOG 中国赛区联盟</span>
+            <span class="c-head__r">NO. FOG-CN-TR-2019-0147</span>
+          </div>
+
+          <div class="c-title">
+            <h1 class="foil">选手转会协议</h1>
+            <p>PLAYER TRANSFER AGREEMENT</p>
+          </div>
+
+          <dl class="c-info">
+            <div class="c-row"><dt>转出方</dt><dd>IAC 电子竞技俱乐部</dd></div>
+            <div class="c-row"><dt>转入方</dt><dd>Free 电子竞技俱乐部</dd></div>
+            <div class="c-row"><dt>选　手</dt><dd>时洛（ID: EVIL）</dd></div>
+            <div class="c-row"><dt>合同期限</dt><dd>一个赛季（可续）</dd></div>
+            <div class="c-row c-row--key"><dt>签约费</dt><dd class="foil">25,000,000 元</dd></div>
+          </dl>
+
+          <div class="c-sign">
+            <div class="c-sign__k">签 署 / SIGNATURES</div>
+            <div class="c-sign__grid">
+              <div class="slot">
+                <div class="slot__lb">转出方</div>
+                <div class="slot__ln"></div>
+                <div class="slot__who">IAC 电子竞技俱乐部 · 已签署</div>
+                <div class="slot__ink">
+                  <span class="sig" style="--r:-4deg">
+                    <img class="sig__img" alt="转出方代表签名" src="data:image/png;base64,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">
+                    <svg class="sig__f" viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true">
+                      <path d="M1.5 8.2 C 15 2.6, 29 11.2, 46 6.4 C 61 2.2, 79 10.6, 98.5 5.8"
+                            fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                    </svg>
+                  </span>
+                </div>
+              </div>
+              <div class="slot">
+                <div class="slot__lb">转入方</div>
+                <div class="slot__ln"></div>
+                <div class="slot__who">Free 电子竞技俱乐部 · 已签署</div>
+                <div class="slot__ink">
+                  <span class="sig" style="--r:-5.5deg">
+                    <img class="sig__img" alt="转入方代表签名" src="data:image/png;base64,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">
+                    <svg class="sig__f sig__f--b" viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true">
+                      <path d="M1.5 6.6 C 14 10.4, 27 2.8, 43 7.6 C 58 12, 76 3.4, 98.5 7.2"
+                            fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                    </svg>
+                  </span>
+                </div>
+              </div>
+              <div class="slot">
+                <div class="slot__lb">选手本人</div>
+                <div class="slot__ln"></div>
+                <div class="slot__who" id="playerWho">时洛（EVIL）· 待签署</div>
+                <div class="slot__ink"><img id="sigImg" alt="选手签名"></div>
+              </div>
+              <div class="slot slot--seal">
+                <div class="slot__lb">监管机关</div>
+                <div class="slot__ln"></div>
+                <div class="slot__who">FOG 中国赛区联盟总部 · 备案章</div>
+              </div>
+            </div>
+
+            <dl class="c-date">
+              <dt>签署日期</dt><dd id="signDate">2019 年 08 月 31 日</dd>
+            </dl>
+
+            <div class="seal-slot" aria-hidden="true">
+              <svg class="seal" id="seal" viewBox="0 0 240 240" role="img"
+                   aria-label="FOG 中国赛区联盟转会备案专用章">
+                <defs>
+                  <filter id="ink" x="-16%" y="-16%" width="132%" height="132%">
+                    <feTurbulence type="fractalNoise" baseFrequency=".58" numOctaves="2" seed="7" result="n"/>
+                    <feDisplacementMap in="SourceGraphic" in2="n" scale="1.05"
+                                       xChannelSelector="R" yChannelSelector="G"/>
+                  </filter>
+                  <mask id="inkMask" maskUnits="userSpaceOnUse" x="-40" y="-40" width="320" height="320">
+                    <g class="seal__paint"><circle cx="120" cy="120" r="164" fill="#fff"/></g>
+                  </mask>
+                  <path id="arc" d="M 38,120 A 82,82 0 0 1 202,120" fill="none"/>
+                </defs>
+                <g mask="url(#inkMask)">
+                  <g filter="url(#ink)">
+                    <circle cx="120" cy="120" r="111" fill="none" stroke="#C9A961" stroke-width="1.1" opacity=".62"/>
+                    <circle cx="120" cy="120" r="104" fill="none" stroke="#B33A31" stroke-width="2.6"/>
+                    <circle cx="120" cy="120" r="96" fill="none" stroke="#B33A31" stroke-width="1"
+                            stroke-dasharray="1.2 4.6"/>
+                    <circle class="seal__ring" cx="120" cy="120" r="77" fill="none" stroke="#B33A31" stroke-width="1.2"/>
+                    <text class="seal__txt" fill="#B33A31" font-size="12" letter-spacing="1.6"
+                          font-family="Source Han Serif SC, Noto Serif SC, Songti SC, STSong, SimSun, serif">
+                      <textPath href="#arc" startOffset="50%" text-anchor="middle">FOG 中国赛区联盟 · 转会备案专用章</textPath>
+                    </text>
+                    <g class="seal__core">
+                      <path d="M120 66 L127.2 83.6 L146.2 85.1 L131.7 97.5 L136 116 L120 106.1 L104 116 L108.3 97.5 L93.8 85.1 L112.8 83.6 Z"
+                            fill="#B33A31"/>
+                    </g>
+                    <g class="seal__txt">
+                      <text x="120" y="142" text-anchor="middle" fill="#B33A31" font-size="19" font-weight="700"
+                            letter-spacing="2.6" font-family="Georgia,'Times New Roman',serif">FOG</text>
+                      <line x1="95" y1="152" x2="145" y2="152" stroke="#B33A31" stroke-width=".8"/>
+                      <text x="120" y="169" text-anchor="middle" fill="#B33A31" font-size="9.6"
+                            letter-spacing="1.1" font-family="JetBrains Mono,Consolas,monospace">NO. 0147</text>
+                      <text x="120" y="184" text-anchor="middle" fill="#B33A31" font-size="8.2"
+                            letter-spacing="1.4" font-family="JetBrains Mono,Consolas,monospace">2019.08.31</text>
+                    </g>
+                  </g>
+                </g>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ==================== 右：信息（独立滚动） ==================== -->
+  <aside class="panel-col" id="panel">
+
+    <section class="sec">
+      <div class="sec__hd"><h2>合同概要</h2><em>SUMMARY</em></div>
+      <dl class="rows">
+        <div class="row"><dt>协议编号</dt><dd>FOG-CN-TR-2019-0147</dd></div>
+        <div class="row"><dt>转会窗口</dt><dd>2019 夏季转会期</dd></div>
+        <div class="row"><dt>合同期限</dt><dd>一个赛季（可续）</dd></div>
+        <div class="row"><dt>生效条件</dt><dd>联盟总部备案签章</dd></div>
+        <div class="row"><dt>公示期</dt><dd>7 个自然日</dd></div>
+      </dl>
+    </section>
+
+    <section class="sec">
+      <div class="sec__hd"><h2>缔约主体</h2><em>PARTIES</em></div>
+      <div class="party"><span class="party__r">转出方</span>
+        <span class="party__b"><b>IAC 电子竞技俱乐部</b><span>收转会费及补偿款 · 转移选手注册权</span></span></div>
+      <div class="party"><span class="party__r">转入方</span>
+        <span class="party__b"><b>Free 电子竞技俱乐部</b><span>支付签约费 · 承诺首发位置</span></span></div>
+      <div class="party"><span class="party__r">选手</span>
+        <span class="party__b"><b>时洛（ID: EVIL）</b><span>签署服务合同 · 享有按年赎回权</span></span></div>
+      <div class="party"><span class="party__r">监管方</span>
+        <span class="party__b"><b>FOG 中国赛区联盟总部</b><span>审核 · 签章 · 公示生效</span></span></div>
+    </section>
+
+    <section class="sec">
+      <div class="sec__hd"><h2>对价与支付</h2><em>CONSIDERATION</em></div>
+      <div class="pay">
+        <div class="pay__c">
+          <div class="pay__k">签约费 · 支付给选手本人</div>
+          <div class="pay__v foil" id="paySign">25,000,000<u>元</u></div>
+          <div class="pay__n">一次性支付，于备案公示结束后 10 个工作日内结清</div>
+        </div>
+        <div class="pay__c">
+          <div class="pay__k">转会费 · 支付给转出方</div>
+          <div class="pay__v">0<u>元</u></div>
+          <div class="pay__n">选手剩余合约不足两个月，按自由身转会处理</div>
+        </div>
+        <div class="pay__c">
+          <div class="pay__k">单列补偿 · 支付给转出方</div>
+          <div class="pay__v">2,000,000<u>元</u></div>
+          <div class="pay__n">不计入转会费，不参与签约费核算</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <div class="sec__hd"><h2>合同条款</h2><em>CLAUSES 壹 — 拾</em></div>
+      <div class="cl" id="clList" role="tablist" aria-label="合同条款目录"></div>
+      <div id="clDocs"></div>
+    </section>
+
+    <section class="sec">
+      <div class="sec__hd"><h2>备案流程</h2><em>WORKFLOW</em></div>
+      <div class="flow" id="flow">
+        <div class="fl"><b>缔约主体核验</b><span>PARTY VERIFICATION</span></div>
+        <div class="fl"><b>对价拆分，转会费与签约费分列</b><span>SPLIT</span></div>
+        <div class="fl"><b>选手签署服务合同</b><span>PLAYER SIGNATURE</span></div>
+        <div class="fl"><b>联盟总部审核并加盖备案章</b><span>LEAGUE SEAL</span></div>
+        <div class="fl"><b>公示 7 个自然日</b><span>PUBLIC NOTICE</span></div>
+        <div class="fl"><b>转会期窗口内官宣</b><span>ANNOUNCEMENT</span></div>
+      </div>
+    </section>
+
+    <section class="sec" id="signSec">
+      <div class="sec__hd"><h2>选手签署</h2><em>SIGNATURE</em></div>
+      <div class="signbox" id="signbox">
+        <div class="signbox__k">手写签名</div>
+        <p class="signbox__n">请在下方签名区手写签名。签名与联盟备案章共同构成本协议的电子签署。</p>
+
+        <div class="pad" id="pad">
+          <canvas id="sigCanvas"></canvas>
+          <span class="pad__ln" aria-hidden="true"></span>
+          <span class="pad__ph" id="padPh">时　洛</span>
+          <button class="pad__x" id="padClear" type="button">清除</button>
+        </div>
+
+        <label class="agree">
+          <input type="checkbox" id="agree">
+          <span>本人已完整阅读并同意本协议全部条款，知悉签约费、转会费与合同期限的约定。</span>
+        </label>
+
+        <button class="btn" id="signBtn" type="button" disabled>签 署 并 提 交</button>
+        <button class="btn btn--ghost" id="undoBtn" type="button" hidden>撤销签署</button>
+
+        <div class="done-note" id="doneNote">
+          <i aria-hidden="true"></i><span>选手签署完成，联盟备案章已加盖</span><time id="doneTime"></time>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <p>本页为文学作品《FOG》衍生设计稿，非真实法律文件；合同条款与数据均为剧情演绎，不构成任何法律意见。<br>
+      零依赖单文件 · 纯黑黑金 · 左侧合同固定 / 右侧独立滚动 · 手写签名触发自动盖章。</p>
+    </footer>
+
+  </aside>
+</main>
+
+<script>
+(function(){
+  'use strict';
+
+  var card   = document.getElementById('card');
+  var wrap   = document.getElementById('cardWrap');
+  var seal   = document.getElementById('seal');
+  var sigImg = document.getElementById('sigImg');
+  var who    = document.getElementById('playerWho');
+  var status = document.getElementById('status');
+  var statusTxt = document.getElementById('statusTxt');
+  var flow   = document.getElementById('flow');
+  var signbox= document.getElementById('signbox');
+  var doneNote = document.getElementById('doneNote');
+  var doneTime = document.getElementById('doneTime');
+  var agree  = document.getElementById('agree');
+  var signBtn= document.getElementById('signBtn');
+  var undoBtn= document.getElementById('undoBtn');
+
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* 剧情时间线：合同签署日与右侧时间戳统一为同一天 */
+  var SIGN_STAMP = '2019-08-31 21:40';
+
+  /* ============================================================
+     3D 透视倾斜 + 弹簧阻尼回正 + 极淡径向反射
+     ============================================================ */
+  function mk(x,k,c,m){ return { x:x, v:0, t:x, k:k, c:c, m:m }; }
+  function step(s,dt){ var a=(-s.k*(s.x-s.t)-s.c*s.v)/s.m; s.v+=a*dt; s.x+=s.v*dt; }
+  function idle(s){ return Math.abs(s.x-s.t)<5e-4 && Math.abs(s.v)<5e-4; }
+
+  var S = { rx:mk(0,170,23,1), ry:mk(0,170,23,1), sc:mk(1,200,26,1),
+            mx:mk(50,260,30,1), my:mk(50,260,30,1), sh:mk(0,140,25,1) };
+  var ORDER = ['rx','ry','sc','mx','my','sh'];
+  var FIX = 1/120, raf = 0, last = 0, acc = 0;
+  var MAX_X = 7.5, MAX_Y = 8.5;
+
+  function setMax(){
+    var narrow = window.innerWidth < 1000;
+    MAX_X = narrow ? 4 : 7.5;
+    MAX_Y = narrow ? 5 : 8.5;
+  }
+  setMax();
+
+  function anyActive(){ for (var i=0;i<ORDER.length;i++){ if(!idle(S[ORDER[i]])) return true; } return false; }
+  function render(){
+    var sc = Math.min(1, Math.max(0.92, S.sc.x));
+    card.style.transform = 'rotateX(' + S.rx.x.toFixed(3) + 'deg) rotateY(' + S.ry.x.toFixed(3) +
+      'deg) scale(' + sc.toFixed(4) + ')';
+    var sh = S.sh.x < 0 ? 0 : (S.sh.x > 1 ? 1 : S.sh.x);
+    card.style.setProperty('--mx', S.mx.x.toFixed(2) + '%');
+    card.style.setProperty('--my', S.my.x.toFixed(2) + '%');
+    card.style.setProperty('--shine', sh.toFixed(3));
+  }
+  function frame(now){
+    if (!last) last = now;
+    var dt = (now - last)/1000; last = now;
+    if (dt > 0.1) dt = 0.1;
+    acc += dt;
+    var g = 0;
+    while (acc >= FIX && g++ < 30){ acc -= FIX; for (var i=0;i<ORDER.length;i++) step(S[ORDER[i]], FIX); }
+    render();
+    if (anyActive()) raf = requestAnimationFrame(frame); else { raf = 0; last = 0; }
+  }
+  function kick(){ if (reduce) return; if (!raf){ last = 0; raf = requestAnimationFrame(frame); } }
+  function neutral(instant){
+    S.rx.t=0; S.ry.t=0; S.sc.t=1; S.mx.t=50; S.my.t=50; S.sh.t=0;
+    if (instant){
+      S.rx.x=0;S.rx.v=0;S.ry.x=0;S.ry.v=0;S.sc.x=1;S.sc.v=0;
+      S.mx.x=50;S.mx.v=0;S.my.x=50;S.my.v=0;S.sh.x=0;S.sh.v=0;
+      render();
+    }
+  }
+  function pointToCard(e){
+    var r = card.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    return { x:(e.clientX-r.left)/r.width*2-1, y:(e.clientY-r.top)/r.height*2-1 };
+  }
+  function applyPoint(p){
+    var cx = Math.max(-1, Math.min(1, p.x)), cy = Math.max(-1, Math.min(1, p.y));
+    S.ry.t = cx * MAX_Y; S.rx.t = -cy * MAX_X;
+    S.mx.t = (Math.max(-1.2, Math.min(1.2, p.x)) * 0.5 + 0.5) * 100;
+    S.my.t = (Math.max(-1.2, Math.min(1.2, p.y)) * 0.5 + 0.5) * 100;
+    kick();
+  }
+  var pressing = false;
+  wrap.addEventListener('pointerdown', function(e){
+    if (reduce) return;
+    pressing = true; S.sc.t = 0.99; S.sh.t = 1;
+    var p = pointToCard(e); if (p) applyPoint(p);
+    try { if (wrap.setPointerCapture) wrap.setPointerCapture(e.pointerId); } catch(err){}
+  }, { passive:true });
+  wrap.addEventListener('pointermove', function(e){
+    if (reduce) return;
+    if (e.pointerType === 'touch' && !pressing) return;
+    var p = pointToCard(e); if (p) applyPoint(p);
+  }, { passive:true });
+  function release(e){
+    pressing = false; S.sc.t = 1;
+    if (e && e.pointerType === 'touch') neutral(false);
+    kick();
+  }
+  wrap.addEventListener('pointerup', release);
+  wrap.addEventListener('pointercancel', release);
+  wrap.addEventListener('pointerenter', function(e){
+    if (reduce || e.pointerType === 'touch') return;
+    S.sh.t = 1; kick();
+  });
+  wrap.addEventListener('pointerleave', function(e){
+    if (e.pointerType === 'touch') return;
+    pressing = false; neutral(false); kick();
+  });
+  card.addEventListener('keydown', function(e){
+    var handled = true, d = 1.5;
+    switch(e.key){
+      case 'ArrowLeft':  S.ry.t = Math.max(-MAX_Y*1.4, S.ry.t - d); break;
+      case 'ArrowRight': S.ry.t = Math.min( MAX_Y*1.4, S.ry.t + d); break;
+      case 'ArrowUp':    S.rx.t = Math.max(-MAX_X*1.4, S.rx.t + d); break;
+      case 'ArrowDown':  S.rx.t = Math.min( MAX_X*1.4, S.rx.t - d); break;
+      case 'Escape':     neutral(false); break;
+      default: handled = false;
+    }
+    if (handled && !reduce){ e.preventDefault(); kick(); }
+  });
+  /* ============================================================
+     横屏矮屏兜底：把合同整体缩放到刚好放得下
+     （CSS 已经把卡片压到很矮，这里只处理极端小屏，正常不会触发）
+     ============================================================ */
+  var docCol = document.querySelector('.doc-col');
+  var cardWrap = document.querySelector('.card-wrap');
+
+  function fitCard(){
+    if (!docCol || !cardWrap) return;
+    cardWrap.style.transform = '';
+    /* 只在"横屏且矮"的形态下生效，竖屏/桌面不动 */
+    var shortLandscape = window.matchMedia('(orientation:landscape) and (max-height:620px)').matches;
+    if (!shortLandscape){ return; }
+
+    var cs = getComputedStyle(docCol);
+    var availH = docCol.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    var availW = docCol.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    if (availH <= 0 || availW <= 0) return;
+
+    var h = cardWrap.offsetHeight;
+    var w = cardWrap.offsetWidth;
+    var s = Math.min(1, availH / h, availW / w);
+    if (s < 0.999){
+      /* 缩放后宽度会变小，用 translateX 回正，避免整块偏左 */
+      cardWrap.style.transformOrigin = 'center center';
+      cardWrap.style.transform = 'scale(' + s.toFixed(4) + ')';
+    }
+  }
+
+  window.addEventListener('resize', function(){
+    var was = MAX_Y <= 5; setMax();
+    if (was !== (MAX_Y <= 5)) neutral(true);
+    fitCanvas();
+    fitCard();
+  }, { passive:true });
+  window.addEventListener('orientationchange', function(){
+    setTimeout(function(){ fitCanvas(); fitCard(); }, 120);
+  }, { passive:true });
+  render();
+
+  /* ============================================================
+     签名板
+     ============================================================ */
+  var pad = document.getElementById('pad');
+  var cv  = document.getElementById('sigCanvas');
+  var padPh = document.getElementById('padPh');
+  var padClear = document.getElementById('padClear');
+  var ctx = cv.getContext('2d');
+  var dpr = Math.min(2, window.devicePixelRatio || 1);
+  var strokes = [], cur = null, prev = null, prevMid = null, drawing = false, hasInk = false;
+
+  function fitCanvas(){
+    var r = pad.getBoundingClientRect();
+    if (!r.width) return;
+    cv.width  = Math.round(r.width * dpr);
+    cv.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.lineWidth = 2.1;
+    ctx.strokeStyle = '#EAE3D2';
+    redraw();
+  }
+  function redraw(){
+    var r = pad.getBoundingClientRect();
+    ctx.clearRect(0, 0, r.width, r.height);
+    ctx.lineWidth = 2.1; ctx.strokeStyle = '#EAE3D2';
+    for (var i=0;i<strokes.length;i++){
+      var s = strokes[i];
+      if (s.length < 2){ if (s.length === 1){ ctx.beginPath(); ctx.arc(s[0].x, s[0].y, 1.05, 0, 6.284); ctx.fillStyle='#EAE3D2'; ctx.fill(); } continue; }
+      ctx.beginPath(); ctx.moveTo(s[0].x, s[0].y);
+      for (var j=1;j<s.length-1;j++){
+        var mx = (s[j].x + s[j+1].x)/2, my = (s[j].y + s[j+1].y)/2;
+        ctx.quadraticCurveTo(s[j].x, s[j].y, mx, my);
+      }
+      ctx.lineTo(s[s.length-1].x, s[s.length-1].y);
+      ctx.stroke();
+    }
+  }
+  function mark(){
+    if (hasInk) return;
+    hasInk = true;
+    pad.classList.add('has-ink');
+    padPh.style.opacity = '0';
+    padPh.style.visibility = 'hidden';
+    refreshBtn();
+  }
+  function refreshBtn(){
+    signBtn.disabled = !(hasInk && agree.checked && !signed);
+  }
+  function pos(e){
+    var r = cv.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+  pad.addEventListener('pointerdown', function(e){
+    if (signed) return;
+    drawing = true;
+    try { pad.setPointerCapture(e.pointerId); } catch(err){}
+    cur = []; strokes.push(cur);
+    cur.push(pos(e)); prev = pos(e); prevMid = null;
+    mark();
+    e.preventDefault();
+  });
+  pad.addEventListener('pointermove', function(e){
+    if (!drawing || signed) return;
+    var p = pos(e);
+    ctx.beginPath();
+    ctx.moveTo(prevMid ? prevMid.x : prev.x, prevMid ? prevMid.y : prev.y);
+    var mid = { x:(prev.x+p.x)/2, y:(prev.y+p.y)/2 };
+    ctx.quadraticCurveTo(prev.x, prev.y, mid.x, mid.y);
+    ctx.stroke();
+    cur.push(p);
+    prevMid = mid; prev = p;
+  });
+  function stopDraw(){
+    if (!drawing) return;
+    drawing = false;
+    if (cur && cur.length === 1){          // 点一下也算一笔
+      ctx.beginPath(); ctx.arc(cur[0].x, cur[0].y, 1.05, 0, 6.284);
+      ctx.fillStyle = '#EAE3D2'; ctx.fill();
+    }
+    if (cur && cur.length >= 1) mark();
+    prev = prevMid = null;
+  }
+  pad.addEventListener('pointerup', stopDraw);
+  pad.addEventListener('pointercancel', stopDraw);
+  pad.addEventListener('pointerleave', function(){ if (drawing) stopDraw(); });
+
+  padClear.addEventListener('click', function(){
+    if (signed) return;
+    strokes = []; cur = null; prev = prevMid = null;
+    hasInk = false;
+    pad.classList.remove('has-ink');
+    padPh.style.opacity = '';
+    padPh.style.visibility = '';
+    redraw(); refreshBtn();
+  });
+
+  agree.addEventListener('change', refreshBtn);
+
+  /* ============================================================
+     签署 → 自动盖章
+     ============================================================ */
+  var signed = false, sealed = false;
+  var timers = [];
+  function at(ms, fn){ timers.push(setTimeout(fn, ms)); }
+  function clearAll(){ for (var i=0;i<timers.length;i++) clearTimeout(timers[i]); timers.length = 0; }
+
+  function setStatus(kind, text){
+    status.className = 'status' + (kind ? ' is-' + kind : '');
+    statusTxt.textContent = text;
+  }
+
+  function sign(){
+    if (signed || !hasInk || !agree.checked) return;
+    signed = true;
+    clearAll();
+
+    /* 1. 选手签名落到合同卡上 */
+    var url = cv.toDataURL('image/png');
+    sigImg.src = url;
+    void sigImg.offsetWidth;        /* 强制回流，让淡入过渡从透明态开始 */
+    sigImg.classList.add('is-on');  /* 同步置为可见，不依赖 rAF */
+    who.textContent = '时洛（EVIL）· 已签署';
+
+    pad.classList.add('is-signed');
+    padClear.hidden = true;
+    signBtn.hidden = true;
+    undoBtn.hidden = false;
+    agree.checked = true;
+    agree.disabled = true;
+    setStatus('sign', '已签署');
+    flow.classList.add('is-done');
+
+    /* 2. 自动加盖联盟备案章 */
+    at(900, function(){
+      seal.classList.remove('is-final');
+      seal.classList.add('is-on');
+      sealed = true;
+      setStatus('sealed', '已备案');
+      at(1500, function(){ seal.classList.add('is-final'); });
+      at(1400, function(){
+        doneNote.classList.add('is-on');
+        doneTime.textContent = stampDateTime();
+      });
+    });
+  }
+
+  function undo(){
+    clearAll();
+    signed = false; sealed = false;
+    seal.classList.remove('is-on','is-final');
+    void seal.offsetWidth;
+    sigImg.classList.remove('is-on');
+    at(520, function(){ sigImg.removeAttribute('src'); });
+    who.textContent = '时洛（EVIL）· 待签署';
+    pad.classList.remove('is-signed');
+    padClear.hidden = false;
+    signBtn.hidden = false;
+    undoBtn.hidden = true;
+    agree.disabled = false;
+    agree.checked = false;
+    doneNote.classList.remove('is-on');
+    flow.classList.remove('is-done');
+    setStatus('', '待签署');
+    refreshBtn();
+  }
+
+  /* 签署时间戳与合同卡「签署日期」保持一致：2019 年 08 月 31 日 */
+  function stampDateTime(){ return SIGN_STAMP; }
+
+  signBtn.addEventListener('click', sign);
+  undoBtn.addEventListener('click', undo);
+
+  /* ============================================================
+     条款
+     ============================================================ */
+  var CLAUSES = [
+    { no:'壹', nm:'转会费', en:'TRANSFER FEE',
+      sum:'转入方应就选手剩余注册年限向转出方支付一次性对价。选手与原俱乐部剩余合约不足两个月的，视为自由身转会，不产生转会费，全部对价转列为签约费并支付选手本人。',
+      pts:['对价收款方依款项性质确定：转会费支付转出方，签约费支付选手本人。',
+           '剩余合约不足约定阈值的，转会费计为零，转出方另获单列补偿。',
+           '分期支付的，任一期逾期未付，注册权转移程序暂停。'] },
+    { no:'贰', nm:'签约费', en:'SIGNING FEE',
+      sum:'签约费支付给选手本人，由基础年费、首发奖金与战绩奖金三部分构成，并以不低于选手原俱乐部现行签约费水平为保护线。',
+      pts:['基础年费按月发放，不与任何非书面承诺挂钩。',
+           '首发奖金与战绩奖金的标准须量化、可核验。',
+           '低于保护线的，选手有权无责解除本合同。'] },
+    { no:'叁', nm:'合同期限', en:'TERM',
+      sum:'合同期限为一个赛季，届满前双方可协商续约，最长不超过两个赛季，并附双向续约优先权。任何超过三个赛季的期限约定，须经选手本人与联盟总部双重确认后生效。',
+      pts:['不设五年期及以上固定期限条款。',
+           '续约优先权双向对等，禁止单方自动续期。',
+           '未经双重确认的超长期限约定视为可撤销。'] },
+    { no:'肆', nm:'选手约与经纪约分离', en:'PLAYER / AGENT CONTRACT',
+      sum:'选手约约束比赛与训练义务，经纪约约束商业开发。二者分别签署、分别计费，并可单独终止。',
+      pts:['商业活动须逐次取得选手书面同意。',
+           '经纪约分成比例单独列明，不得并入签约费核算。',
+           '任一份合同终止，不影响另一份的独立效力。'] },
+    { no:'伍', nm:'违约金与赎回', en:'BUY-OUT',
+      sum:'违约金上限为剩余年限签约费总额的固定比例，并按剩余期限逐年递减。选手本人享有按年单方赎回剩余年限的权利。',
+      pts:['赎回权为合同权利，不以转出方同意为前提。',
+           '赎金随剩余期限递减，不得逐年递增。',
+           '赎回完成后，注册权与经纪约须同步无残留解除。'] },
+    { no:'陆', nm:'转职与首发', en:'ROLE & LINEUP',
+      sum:'转入方应书面承诺首发位置及最低出场场次。任何转职安排须经选手书面同意；因转职导致失去首发的，选手有权解除合同或要求补偿。',
+      pts:['首发承诺须载明具体注册位置。',
+           '转职须双向书面确认，并约定适应期与评估标准。',
+           '承诺未兑现的，选手解约不承担违约责任。'] },
+    { no:'柒', nm:'直播与商业', en:'STREAMING',
+      sum:'每月直播时长上限为三十小时，超出部分由选手自愿决定。直播不得占用训练与休息时间，不强制开启摄像头。',
+      pts:['直播平台由转入方推荐、选手确认，签约费单列。',
+           '打赏分成比例按月结算并向选手公示流水。',
+           '涉及选手形象的使用须逐次授权。'] },
+    { no:'捌', nm:'未成年与监护人', en:'MINOR & GUARDIAN',
+      sum:'选手年满十六周岁可自行签署选手合同，俱乐部应于签署后七个自然日内通知其监护人。未满十八周岁的选手享有一年期的合同撤销权。',
+      pts:['禁止绕开选手经纪人或法定代理人单独催签。',
+           '磋商过程全程留痕，口头承诺一律书面化。',
+           '不得以出场安排为条件胁迫签约。'] },
+    { no:'玖', nm:'联盟注册与合规', en:'LEAGUE FILING',
+      sum:'本合同经联盟总部备案签章后生效，转会手续限于转会期内完成。跨赛区转会须经联盟审批并办理账号与资格转移。涉及禁赛、假赛的，合同即时解除。',
+      pts:['未完成备案的合同不产生注册效力。',
+           '跨赛区转会须完成账号转移与资格认定。',
+           '假赛、代打等行为一经认定，即时解约并追偿。'] },
+    { no:'拾', nm:'借调', en:'LOAN',
+      sum:'借调仅限同级别选手，须约定明确期限与回归条款。借调期间的薪酬、保险与差旅由借调方承担。',
+      pts:['跨级别借调不予备案，不产生效力。',
+           '借调期不计入原合同年限，另有书面约定的除外。',
+           '借调方承担伤病与保险责任，不得转借第三方。'] }
+  ];
+
+  var clList = document.getElementById('clList');
+  var clDocs = document.getElementById('clDocs');
+  var lh = '', dh = '';
+  for (var i = 0; i < CLAUSES.length; i++){
+    var c = CLAUSES[i];
+    lh += '<button class="cli' + (i===0?' is-on':'') + '" type="button" role="tab" id="ct-'+i+'"' +
+          ' aria-controls="cd-'+i+'" aria-selected="'+(i===0)+'">' +
+            '<span class="cli__no">'+c.no+'</span>' +
+            '<span class="cli__nm">'+c.nm+'</span>' +
+            '<span class="cli__en">'+c.en+'</span>' +
+          '</button>';
+    var li = '';
+    for (var j=0;j<c.pts.length;j++) li += '<li>'+c.pts[j]+'</li>';
+    dh += '<div class="cld" id="cd-'+i+'" role="tabpanel" aria-labelledby="ct-'+i+'"'+(i===0?'':' hidden')+'>' +
+            '<h3 class="cld__t">'+c.no+' · '+c.nm+'</h3>' +
+            '<p class="cld__en">'+c.en+'</p>' +
+            '<p class="cld__s">'+c.sum+'</p>' +
+            '<p class="cld__k">要点 / KEY POINTS</p>' +
+            '<ul>'+li+'</ul>' +
+          '</div>';
+  }
+  clList.innerHTML = lh;
+  clDocs.innerHTML = dh;
+
+  var clis = clList.querySelectorAll('.cli'), clds = clDocs.querySelectorAll('.cld'), cur = 0;
+  function showClause(k){
+    if (k === cur) return;
+    clis[cur].classList.remove('is-on'); clis[cur].setAttribute('aria-selected','false');
+    clds[cur].hidden = true;
+    cur = k;
+    clis[cur].classList.add('is-on'); clis[cur].setAttribute('aria-selected','true');
+    clds[cur].hidden = false;
+  }
+  clList.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('.cli') : null;
+    if (!b) return;
+    for (var k=0;k<clis.length;k++){ if (clis[k] === b){ showClause(k); break; } }
+  });
+  clList.addEventListener('keydown', function(e){
+    var idx = -1;
+    for (var k=0;k<clis.length;k++){ if (clis[k] === document.activeElement) idx = k; }
+    if (idx < 0) return;
+    var next = -1;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') next = (idx+1) % clis.length;
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') next = (idx-1+clis.length) % clis.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = clis.length - 1;
+    if (next >= 0){ e.preventDefault(); clis[next].focus(); showClause(next); }
+  });
+
+  /* ============================================================
+     初始化
+     ============================================================ */
+  fitCanvas();
+  fitCard();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ fitCanvas(); fitCard(); });
+  window.addEventListener('load', function(){ fitCanvas(); fitCard(); });
+  setTimeout(fitCard, 300);          /* 等布局与内嵌签名图解码完再量一次 */
+  refreshBtn();
+  setStatus('', '待签署');
+})();
+</script>
+<script>
+/* PWA：注册 Service Worker，支持离线安装 */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function (err) {
+      console.warn('Service Worker 注册失败：', err);
+    });
+  });
+}
+</script>
+</body>
+</html>
+
